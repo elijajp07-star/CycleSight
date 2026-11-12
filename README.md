@@ -55,9 +55,6 @@ Draw the START and END zones, perform the task, then:
 - Motion economy: hand travel distance, two-handed work, path directness
 - Method comparison with a permutation test for statistical significance
 
-## Results
-
-TODO: add the case study numbers and a screenshot of the comparison report.
 
 ## Roadmap
 
