@@ -1,116 +1,66 @@
-# Thursday Switch v4.0
+# CycleSight
 
-Chrome extension that scrapes Depop and eBay stores to extract clothing listings for import into the Thursday platform.
+A computer-vision time and motion study tool. CycleSight tracks a worker's hands
+in video, automatically detects each work cycle, and reports cycle time, hand
+travel, and standard time. Record two methods of doing the same task and it
+quantifies the improvement between them.
 
-## What's New in v4.0
+Built with Python, OpenCV, and MediaPipe.
 
-- **eBay store support** — scrape any eBay store's Buy It Now listings
-- **Auto-pagination** — handles multi-page eBay stores (up to 240 items/page)
-- **Platform auto-detection** — detects Depop vs eBay from the URL
-- **Platform badge** — shows which platform you're on in the popup
-- **Rate limit handling** — exponential backoff for eBay 429 responses
-- **Unified output** — same JSON format works for both platforms
+## What it does
 
-## Supported Platforms
+- Tracks both hands in a live webcam feed or a recorded video (phone video works)
+- Detects work cycles automatically using START and END zones drawn on screen
+- Generates a report for a session: cycle times, consistency, standard time,
+  output per hour, hand travel, low-motion time, path directness, hand balance
+- Compares two methods side by side with percent change for every metric and a
+  statistical significance test on cycle time
+- Produces charts: cycle time by cycle, time breakdown, hand-path (spaghetti)
+  diagrams
 
-### Depop
-- Shop pages (`depop.com/@username`)
-- Single product pages (`depop.com/products/...`)
-- Selling Hub
-- Search results
+## How it works
 
-### eBay
-- Store pages (`ebay.com/str/storename`)
-- Store search pages (`ebay.com/sch/...?_ssn=storename`)
-- Single item pages (`ebay.com/itm/...`)
+1. `track.py` runs MediaPipe hand tracking on each frame and logs the palm
+   position of each hand. A cycle is counted when a hand enters the START zone
+   and then the END zone.
+2. `analyze.py` turns one recorded session into an HTML report.
+3. `compare.py` compares two sessions (baseline method vs improved method).
 
-## How It Works
+## Setup
 
-### Depop
-1. Navigate to a Depop shop page
-2. Click the extension → "Extract All Listings"
-3. Extension auto-scrolls to load items, then fetches each product page
-4. Downloads JSON/CSV when complete
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install -r requirements.txt
+    curl -L -o hand_landmarker.task https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task
 
-### eBay
-1. Navigate to an eBay store page
-2. Click the extension → "Extract All Listings"
-3. Extension auto-filters to Buy It Now only
-4. Paginates through all store pages to collect listing URLs
-5. Fetches each product page for full details (with 1-2s delays)
-6. Downloads JSON/CSV when complete
+## Usage
 
-## eBay-Specific Notes
+Record from the webcam:
 
-- **Buy It Now only** — auctions are automatically filtered out via `LH_BIN=1`
-- **Max 240 items per page** — uses `_ipg=240` for efficiency
-- **Rate limiting** — 1-2 second delay between product page fetches; 10 second backoff on 429 responses
-- **Image resolution** — primary source is `data-zoom-src` (carousel), with JSON-LD `Product.image` as fallback; all upgraded to `s-l1600.jpg`
-- **Item specifics** — extracts size, brand, department, type, color from eBay's semantic CSS classes (`ux-labels-values--brand`, etc.)
-- **Size fallback** — when item specifics say "See Measurements", parses title for standard sizes (letter, numeric, waist×inseam)
-- **JSON-LD enrichment** — some eBay listings have Product + BreadcrumbList JSON-LD; used as fallback for images, brand, and category path
-- **Description** — pulled from `meta[name="description"]` since eBay's inline description is in an inaccessible iframe
-- **Condition mapping**:
-  - Brand New / New with Tags / New without Tags → Excellent
-  - Pre-Owned / New with Defects → Good  
-  - Pre-Owned - Good → Good
-  - Pre-Owned - Fair → Fair
-  - For Parts → Poor
+    python track.py
 
-## Output Format
+Or analyze a video file:
 
-Both platforms produce the same Thursday-compatible JSON:
+    python track.py path/to/video.mov
 
-```json
-{
-  "exportedAt": "2026-03-08T...",
-  "version": "4.0",
-  "totalItems": 42,
-  "skippedSold": 10,
-  "products": [
-    {
-      "name": "Vintage Nike Windbreaker",
-      "description": "...",
-      "price": 45.00,
-      "condition": "Good",
-      "status": "DRAFT",
-      "size": "L",
-      "brand": "Nike",
-      "category": "Outerwear",
-      "type": "Windbreakers",
-      "weight": 1.2,
-      "styleTags": ["Vintage", "Sporty"],
-      "images": [{ "url": "...", "isPrimary": true, "sortOrder": 0 }],
-      "_source": {
-        "platform": "ebay",
-        "ebayId": "257322711183",
-        "ebayUrl": "https://www.ebay.com/itm/257322711183"
-      }
-    }
-  ]
-}
-```
+Draw the START and END zones, perform the task, then:
 
-## Installation
+    python analyze.py
+    python compare.py
 
-1. Download or clone this directory
-2. Open `chrome://extensions/` in Chrome
-3. Enable "Developer mode" (top right)
-4. Click "Load unpacked" and select the `thursday-switch-v4` folder
-5. Navigate to a Depop shop or eBay store and click the extension icon
+## Industrial engineering concepts used
 
-## File Structure
+- Time study: observed time, performance rating, allowances, standard time
+- Required number of observations for a target accuracy and confidence level
+- Motion economy: hand travel distance, two-handed work, path directness
+- Method comparison with a permutation test for statistical significance
 
-```
-thursday-switch-v4/
-├── manifest.json        # Extension manifest (v3)
-├── icons/               # Extension icons
-├── src/
-│   ├── background.js    # Service worker
-│   ├── content.js       # Scraping logic (DepopScraper + EbayScraper)
-│   ├── content.css      # Progress overlay styles
-│   ├── popup.html       # Extension popup UI
-│   ├── popup.css        # Popup styles
-│   └── popup.js         # Popup controller
-└── README.md
-```
+## Results
+
+TODO: add the case study numbers and a screenshot of the comparison report.
+
+## Roadmap
+
+- Calibrate pixels to real-world distance
+- Detect grasp and release to break cycles into motion elements
+- Ergonomic posture scoring
